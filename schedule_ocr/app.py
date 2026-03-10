@@ -122,7 +122,7 @@ HTML_TEMPLATE = """
             </div>
         </div>
         
-        <div class="version">v0.0.4</div>
+        <div class="version">v0.0.5</div>
     </div>
 
     <script>
@@ -314,16 +314,30 @@ def upload():
         with open(image_path, 'rb') as f:
             img_data = base64.b64encode(f.read()).decode('utf-8')
         
-        prompt = "請完整分析這張排班表圖片，提取所有人的姓名和班次（日期、時間）。請用**純 JSON 格式**回答，不要有其他文字。格式如下：{\"schedules\": {\"姓名\": [{\"date\": \"日期\", \"time\": \"時間\"}, ...], ...}}"
+        prompt = """請精確辨識這張排班表。
+1. 找出表格中的所有人名（包括 鄭淑華 等人）。
+2. 提取每個人在每個日期的班次（例如 00-08, 16-00, 例）。
+3. 即使名字在圖片中較模糊，也請根據上下文（例如姓氏規律）進行辨識。
+4. 請務必檢查表格的每一列，不要遺漏任何人。
+
+請用**純 JSON 格式**回答，不要有任何解釋文字。
+格式：{"schedules": {"姓名": [{"date": "115/03/09", "time": "00-08"}, ...], ...}}"""
         
+        logger.info(f"Sending request to Gemini Vision for image {image_id}")
         response = requests.post(OLLAMA_API, json={
             'model': VISION_MODEL,
             'prompt': prompt,
             'images': [img_data]
         }, timeout=120)
         
-        # Parse the response to extract JSON
-        response_text = response.json().get('response', '')
+        # Parse the response text
+        try:
+            response_json = response.json()
+            response_text = response_json.get('response', '')
+            logger.info(f"AI Raw Response for {image_id}: {response_text[:500]}...")
+        except Exception as e:
+            logger.error(f"Failed to parse Ollama response as JSON: {e}")
+            response_text = response.text
         
         # Clean up response - remove any non-JSON content
         response_text = response_text.strip()
