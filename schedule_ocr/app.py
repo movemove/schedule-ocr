@@ -116,7 +116,7 @@ HTML_TEMPLATE = """
             </div>
             <button class="btn" style="background:#FF9800" onclick="exportICS()">📅 導出行事曆 (.ics)</button>
         </div>
-        <div class="version">v0.1.6</div>
+        <div class="version">v0.1.7</div>
     </div>
     <script>
         let currentImageId = localStorage.getItem('lastImageId');
@@ -159,8 +159,9 @@ HTML_TEMPLATE = """
                 
                 // Generate Alice's Analysis
                 const schedules = data.schedules;
-                const workDays = schedules.filter(s => !/休|例|假|贈/.test(s.time));
-                const offDays = schedules.filter(s => /休|例|假|贈/.test(s.time));
+                const offRegex = /休|例|假|贈|國|公|免/;
+                const workDays = schedules.filter(s => !offRegex.test(s.time));
+                const offDays = schedules.filter(s => offRegex.test(s.time));
                 const analysis = document.getElementById('analysisContent');
                 
                 let text = `總計有 <b>${workDays.length}</b> 天要上班，<b>${offDays.length}</b> 天休假。<br>`;
