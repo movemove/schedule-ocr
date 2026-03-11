@@ -116,7 +116,7 @@ HTML_TEMPLATE = """
             </div>
             <button class="btn" style="background:#FF9800" onclick="exportICS()">📅 導出行事曆 (.ics)</button>
         </div>
-        <div class="version">v0.1.7</div>
+        <div class="version">v0.1.8</div>
     </div>
     <script>
         let currentImageId = localStorage.getItem('lastImageId');
@@ -304,8 +304,8 @@ def export_ics():
     
     for s in schedules:
         time_text = s.get('time', '')
-        # Skip off days
-        if any(word in time_text for word in ['休', '例', '假', '贈']):
+        # Skip off days: Handle both simplified and with brackets (e.g., "(國)")
+        if any(word in time_text for word in ['休', '例', '假', '贈', '國', '公', '免']):
             continue
             
         try:
