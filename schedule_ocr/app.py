@@ -112,7 +112,7 @@ HTML_TEMPLATE = """
             <div id="scheduleList"></div>
             <button class="btn" style="background:#FF9800" onclick="exportICS()">📅 導出行事曆 (.ics)</button>
         </div>
-        <div class="version">v0.1.4</div>
+        <div class="version">v0.1.5</div>
     </div>
     <script>
         let currentImageId = localStorage.getItem('lastImageId');
@@ -299,15 +299,23 @@ def export_ics():
             start_time = "090000"
             end_time = "170000"
             
-            if "大夜班" in time_text or "00-08" in time_text or "0-8" in time_text:
+            # Use ~ or - as separator
+            t_match = re.search(r'(\d{1,2})[~-](\d{1,2})', time_text)
+            if t_match:
+                s_h = int(t_match.group(1))
+                e_h = int(t_match.group(2))
+                start_time = f"{s_h:02d}0000"
+                end_time = f"{e_h:02d}0000"
+                if e_h == 0: end_time = "235959"
+            elif "大夜班" in time_text:
                 start_time = "000000"
                 end_time = "080000"
-            elif "白班" in time_text or "08-16" in time_text or "8-16" in time_text:
+            elif "白班" in time_text:
                 start_time = "080000"
                 end_time = "160000"
-            elif "小夜班" in time_text or "16-0" in time_text or "16-00" in time_text:
+            elif "小夜班" in time_text:
                 start_time = "160000"
-                end_time = "235959" # End of day
+                end_time = "235959"
             
             dt_start = f"{year}{month:02d}{day:02d}T{start_time}"
             dt_end = f"{year}{month:02d}{day:02d}T{end_time}"
