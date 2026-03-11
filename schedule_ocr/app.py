@@ -110,9 +110,13 @@ HTML_TEMPLATE = """
         <div class="result" id="result">
             <h3 id="resultTitle">📊 班表結果</h3>
             <div id="scheduleList"></div>
+            <div id="analysisBox" style="margin-top: 15px; padding: 12px; background: #e3f2fd; border-radius: 8px; border-left: 4px solid #2196F3; font-size: 14px; line-height: 1.6;">
+                <h4 style="margin-bottom: 8px; color: #1976D2;">🐾 Alice 的班表分析</h4>
+                <div id="analysisContent"></div>
+            </div>
             <button class="btn" style="background:#FF9800" onclick="exportICS()">📅 導出行事曆 (.ics)</button>
         </div>
-        <div class="version">v0.1.5</div>
+        <div class="version">v0.1.6</div>
     </div>
     <script>
         let currentImageId = localStorage.getItem('lastImageId');
@@ -151,7 +155,22 @@ HTML_TEMPLATE = """
             if (data.success) {
                 document.getElementById('result').classList.add('show');
                 const list = document.getElementById('scheduleList');
-                list.innerHTML = data.schedules.map(s => `<div class="schedule-item"><span>${s.date}</span><span>${s.time}</span></div>`).join('');
+                list.innerHTML = data.schedules.map(s => `<div class="schedule-item"><span class="date">${s.date}</span><span class="time">${s.time}</span></div>`).join('');
+                
+                // Generate Alice's Analysis
+                const schedules = data.schedules;
+                const workDays = schedules.filter(s => !/休|例|假|贈/.test(s.time));
+                const offDays = schedules.filter(s => /休|例|假|贈/.test(s.time));
+                const analysis = document.getElementById('analysisContent');
+                
+                let text = `總計有 <b>${workDays.length}</b> 天要上班，<b>${offDays.length}</b> 天休假。<br>`;
+                if (offDays.length > 0) {
+                    text += `✨ 休假日分布：${offDays.map(o => o.date.split('/').slice(-2).join('/')).join(', ')}。可以好好安排放鬆一下！`;
+                } else {
+                    text += `🔥 這週看起來很充實，要記得找時間休息唷！`;
+                }
+                analysis.innerHTML = text;
+
                 document.getElementById('result').dataset.schedules = JSON.stringify(data.schedules);
                 document.getElementById('result').dataset.name = data.name;
             } else alert('❌ ' + data.error);
