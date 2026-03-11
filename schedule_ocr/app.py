@@ -112,7 +112,7 @@ HTML_TEMPLATE = """
             <div id="scheduleList"></div>
             <button class="btn" style="background:#FF9800" onclick="exportICS()">📅 導出行事曆 (.ics)</button>
         </div>
-        <div class="version">v0.1.3</div>
+        <div class="version">v0.1.4</div>
     </div>
     <script>
         let currentImageId = localStorage.getItem('lastImageId');
@@ -280,18 +280,55 @@ def search():
 def export_ics():
     data = request.json
     name, schedules = data.get('name'), data.get('schedules', [])
-    ics = "BEGIN:VCALENDAR\nVERSION:2.0\n"
+    ics = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//OpenClaw//ScheduleOCR//TW\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n"
+    
     for s in schedules:
-        if '休假' in s['time'] or '例' in s['time']: continue
+        time_text = s.get('time', '')
+        # Skip off days
+        if any(word in time_text for word in ['休', '例', '假', '贈']):
+            continue
+            
         try:
-            d = s['date'].split('/')
-            year = int(d[0])+1911 if len(d[0])==3 else int(d[0])
-            dt = f"{year}{int(d[1]):02d}{int(d[2]):02d}T090000"
-            ics += f"BEGIN:VEVENT\nSUMMARY:{name} 班表\nDTSTART:{dt}\nDTEND:{dt}\nEND:VEVENT\n"
-        except: continue
+            # Parse date (Format expected: "115/03/09" or similar)
+            d_parts = s['date'].split('/')
+            year = int(d_parts[0]) + 1911 if len(d_parts[0]) == 3 else int(d_parts[0])
+            month = int(d_parts[1])
+            day = int(d_parts[2])
+            
+            # Determine Start/End times based on text
+            start_time = "090000"
+            end_time = "170000"
+            
+            if "大夜班" in time_text or "00-08" in time_text or "0-8" in time_text:
+                start_time = "000000"
+                end_time = "080000"
+            elif "白班" in time_text or "08-16" in time_text or "8-16" in time_text:
+                start_time = "080000"
+                end_time = "160000"
+            elif "小夜班" in time_text or "16-0" in time_text or "16-00" in time_text:
+                start_time = "160000"
+                end_time = "235959" # End of day
+            
+            dt_start = f"{year}{month:02d}{day:02d}T{start_time}"
+            dt_end = f"{year}{month:02d}{day:02d}T{end_time}"
+            
+            # Handle special case: Big Night (00-08) usually refers to starting at midnight
+            # If the user means 00-08 of that date, we use that date.
+            
+            ics += "BEGIN:VEVENT\n"
+            ics += f"SUMMARY:{name} 上班 ({time_text})\n"
+            ics += f"DTSTART;TZID=Asia/Taipei:{dt_start}\n"
+            ics += f"DTEND;TZID=Asia/Taipei:{dt_end}\n"
+            ics += f"DESCRIPTION:辨識班次: {time_text}\n"
+            ics += "END:VEVENT\n"
+        except Exception as e:
+            logger.error(f"ICS export error for {s}: {e}")
+            continue
+            
     ics += "END:VCALENDAR"
     fn = f"{name}_schedule.ics"
-    with open(os.path.join(app.config['OUTPUT_FOLDER'], fn), 'w') as f: f.write(ics)
+    with open(os.path.join(app.config['OUTPUT_FOLDER'], fn), 'w', encoding='utf-8') as f: 
+        f.write(ics)
     return jsonify({'success': True, 'download_url': f'/download/{fn}'})
 
 @app.route('/download/<filename>')
